@@ -87,13 +87,13 @@ the body of a <code>Tasklet.task()</code> method (or something that it calls) th
 an active <code>Scheduler.schedule(Tasklet, Directive)</code> call or an active <code>SchedulerAPI.with(Scheduler, Tasklet)</code> call. In cases of calls that
 are not provably guarded in this way, the
 application must arrange to call have <code>SchedulerAPI.reset()</code> called on each thread that may have called this method in an
-unguarded manner before a reference to the thread is lost. This call is required in order to guarantee the release of a <code>ThreadLocal</code>
+unguarded manner before a reference to such a thread is lost. This call is required in order to guarantee the release of a <code>ThreadLocal</code>
 that might otherwise pin the SchedulerAPI's class loader.
 
 Also as a general rule, code that calls <code>SchedulerAPI.getScheduler()</code> SHOULD NOT also call <code>Scheduler.run()</code>
 since it is the creator of a scheduler's responsibility to decide when the synchronous thread of a scheduler starts
 running and the caller of <code>SchedulerAPI.getScheduler()</code> usually cannot prove that it is ultimately the creator
-of the instance returned by that method. (A thread that can prove this fact should usually call SchedulerAPI.newScheduler() instead).
+of the instance returned by that method. (A thread that can prove this fact should usually call <code>SchedulerAPI.newScheduler()</code> instead).
 
 ##Scheduler
 The Scheduler class provides methods for scheduling Tasklet instances and for managing the state of the
