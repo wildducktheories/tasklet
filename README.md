@@ -75,12 +75,12 @@ use of the tasklet and scheduler abstractions.
 The SchedulerAPI class provides 4 static methods that manage the association between the current thread
 and its Scheduler instance. These calls are:
 
-* newScheduler() - creates a new Scheduler instance. The caller of this method is expected to schedule one or more tasklets
+* <code>newScheduler()</code> - creates a new Scheduler instance. The caller of this method is expected to schedule one or more tasklets
 with <code>schedule(Tasklet, Directive)</code> or to call <code>with(Scheduler, Tasklet)</code> and then call the scheduler's <code>run()</code> method.
-* with(Scheduler, Tasklet) - executes the <code>task()</code> method of the specified tasklet after temporarily changing the current thread's scheduler to be the specified
+* <code>with(Scheduler, Tasklet)</code> - executes the <code>task()</code> method of the specified tasklet after temporarily changing the current thread's scheduler to be the specified
 scheduler. The specified tasklet is rescheduled with the specified scheduler using the return value of the call to the tasklet's <code>task()</code> method.
-* getScheduler() - answers the Scheduler instance currently associated with the current thread or create a new such instance.
-* reset() - removes any ThreadLocal associated with an unguarded use of the <code>SchedulerAPI.getScheduler()</code> call.
+* <code>getScheduler()</code> - answers the Scheduler instance currently associated with the current thread or create a new such instance.
+* <code>reset()</code> - removes any ThreadLocal associated with an unguarded use of the <code>SchedulerAPI.getScheduler()</code> call.
 
 As a general rule, <code>SchedulerAPI.getScheduler()</code> should only be called within
 the body of a <code>Tasklet.task()</code> method (or something that it calls) that is executing as the result of
