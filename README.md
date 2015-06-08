@@ -75,25 +75,67 @@ use of the tasklet and scheduler abstractions.
 The SchedulerAPI class provides 4 static methods that manage the association between the current thread
 and its Scheduler instance. These calls are:
 
-* <code>newScheduler()</code> - creates a new Scheduler instance. The caller of this method is expected to schedule one or more tasklets
-with <code>schedule(Tasklet, Directive)</code> or to call <code>with(Scheduler, Tasklet)</code> and then call the scheduler's <code>run()</code> method.
-* <code>with(Scheduler, Tasklet)</code> - executes the <code>task()</code> method of the specified tasklet after temporarily changing the current thread's scheduler to be the specified
-scheduler. The specified tasklet is rescheduled with the specified scheduler using the return value of the call to the tasklet's <code>task()</code> method.
-* <code>getScheduler()</code> - answers the Scheduler instance currently associated with the current thread or create a new such instance.
-* <code>reset()</code> - removes any ThreadLocal associated with an unguarded use of the <code>SchedulerAPI.getScheduler()</code> call.
+* Scheduler newScheduler()
+* Scheduler with(Scheduler, Directive)
+* Scheduler getScheduler()
+* void reset()
 
-As a general rule, <code>SchedulerAPI.getScheduler()</code> should only be called within
-the body of a <code>Tasklet.task()</code> method (or something that it calls) that is executing as the result of
-an active <code>Scheduler.schedule(Tasklet, Directive)</code> call or an active <code>SchedulerAPI.with(Scheduler, Tasklet)</code> call. In cases of calls that
-are not provably guarded in this way, the
-application must arrange to call have <code>SchedulerAPI.reset()</code> called on each thread that may have called this method in an
-unguarded manner before a reference to such a thread is lost. This call is required in order to guarantee the release of a <code>ThreadLocal</code>
-that might otherwise pin the SchedulerAPI's class loader.
+### method: Scheduler newScheduler()
+Creates a new Scheduler instance.
 
-Also as a general rule, code that calls <code>SchedulerAPI.getScheduler()</code> SHOULD NOT also call <code>Scheduler.run()</code>
-since it is the creator of a scheduler's responsibility to decide when the synchronous thread of a scheduler starts
-running and the caller of <code>SchedulerAPI.getScheduler()</code> usually cannot prove that it is ultimately the creator
-of the instance returned by that method. (A thread that can prove this fact should usually call <code>SchedulerAPI.newScheduler()</code> instead).
+The caller of this method is expected to schedule one or more tasklets with <code>Scheduler.schedule(Tasklet, Directive)</code> or to call
+<code>SchedulerAPI.with(Scheduler, Tasklet)</code> and then call the scheduler's <code>run()</code> method.
+For example:
+
+	SchedulerAPI
+		.newScheduler()
+		.schedule(new Tasklet() { .. }, Directive.SYNC)
+		.run()
+
+Or:
+
+	SchedulerAPI
+		.with(
+			SchedulerAPI.newScheduler(),
+			new Tasklet() { .. }
+		 )
+		.run()
+
+
+### method: Scheduler with(Scheduler, Tasklet)
+Executes the <code>task()</code> method of the specified tasklet after temporarily changing the
+current thread's scheduler to be the specified scheduler. The specified tasklet is rescheduled
+with the specified scheduler using the return value of the call to the tasklet's <code>task()</code> method.
+
+The original scheduler associated with the current thread is restored before this call returns.
+
+Also note that this call is used to invoke a tasklet on an asynchronous thread when a tasklet
+is scheduled with a scheduler with an ASYNC directive. So, all asynchronously scheduled tasklets begin
+executing with their spawning scheduler as the current scheduler on their execution thread.
+
+### method: Scheduler getScheduler()
+Answers the Scheduler instance currently associated with the current thread or create a new such instance. If a
+new instance is created, the synchronous thread for this instance will be automatically created when required.
+
+As a general rule, <code>SchedulerAPI.getScheduler()</code> should only be called on threads with
+active <code>Scheduler.schedule(Tasklet, Directive)</code> or <code>SchedulerAPI.with(Scheduler, Tasklet)</code>
+calls. Refer to the description of the <code>SchedulerAPI.reset()</code> method for more information about what to do in cases
+where possibly unguarded calls to <code>SchedulerAPI.getScheduler()</code> cannot be avoided.
+
+In general, it is not safe to call <code>Scheduler.run()</code> on a Scheduler
+returned by <code>SchedulerAPI.getScheduler()</code> since this call may have been made
+by another thread and in some circumstances this may prevent both calls terminating.
+
+### method: void reset()
+Removes any ThreadLocal associated with an unguarded use of the <code>SchedulerAPI.getScheduler()</code> call.
+
+In cases where <code>SchedulerAPI.getScheduler()</code> calls that are not provably guarded by active
+calls to <code>Scheduler.schedule(Tasklet, Directive)</code> or <code>SchedulerAPI.with(Scheduler, Tasklet)</code>,
+the application must arrange to have <code>SchedulerAPI.reset()</code> called on each thread that may have called
+<code>SchedulerAPI.getScheduler()</code> in an unguarded manner before a reference to each such a thread is lost. This call
+is required in order to guarantee the release of a <code>ThreadLocal</code> that might
+otherwise pin the SchedulerAPI's class loader.
+
 
 ##Scheduler
 The Scheduler class provides methods for scheduling Tasklet instances and for managing the state of the
@@ -102,8 +144,10 @@ scheduler's synchronous thread.
 ###method: void run()
 
 By default, a new scheduler's synchronous thread will not start running automatically and must be started
-by calling the <code>Scheduler.run()</code> method. The receiving scheduler will become the current thread's scheduler and
-the current thread will become the scheduler's synchronous thread. The call will return when all the scheduler's suspended
+by calling the <code>Scheduler.run()</code> method.
+
+The receiving scheduler becomes the current thread's scheduler and the current thread becomes
+the scheduler's synchronous thread. The call will return when all the scheduler's suspended
 tasklets have been resumed and all the scheduler's synchronous and asynchronous tasklets have completed running.
 
 If some other thread is running as the scheduler's synchronous thread, then a call to <code>run()</code> will block until that other thread
@@ -111,18 +155,26 @@ has exited the scheduler. Also note that a live lock may result if an asynchrono
 calls should be avoided.
 
 ###method: Scheduler schedule(Tasklet, Directive)
-The <code>schedule(Tasklet, Directive)</code> method allows tasklets to be scheduled with one of four directives.
+The <code>Scheduler.schedule(Tasklet, Directive)</code> method allows tasklets to be scheduled with the receiving
+Scheduler with one of four directives:
 
-In the following example, the statement creates a new scheduler, schedules a tasklet to run on the scheduler's synchronous thread, then runs
-the scheduler with the current thread as the scheduler's synchronous thread. The statement does not complete until the synchronous
-tasklet (and any tasklets it has spawned in the same scheduler) have completed execution.
+* SYNC
+* ASYNC
+* WAIT
+* DONE
 
-	SchedulerAPI
-		.newScheduler()
-		.schedule(new Tasklet() {
-			// ...
-		 }, Directive.SYNC)
-		.run();
+####SYNC
+The scheduler MUST schedule the tasklet to execute on the scheduler's synchronous thread. The tasklet will not
+execute until the scheduler's synchronous thread starts running.
+
+####ASYNC
+The scheduler MUST schedule the tasklet on a thread other than the scheduler's main thread.
+
+####WAIT
+The scheduler MUST not exit before the tasklet is rescheduled with the scheduler with a different directive.
+
+####DONE
+The scheduler MUST remove all references to the tasklet from the scheduler.
 
 ###method: Rescheduler suspend(Tasklet)
 It may sometimes be necessary to schedule a suspended tasklet to indicate that the scheduler should not exit
@@ -154,25 +206,5 @@ Rescheduler object that can be later used to resume the suspended tasklet. For e
  	}
 
 
-##Directives
-A scheduling directive indicates to a scheduler one of 4 possible actions it may take with respect to a
-related tasklet. These directives are:
-
-* SYNC
-* ASYNC
-* WAIT
-* DONE
-
-###SYNC
-The scheduler MUST schedule the tasklet on the scheduler's synchronous thread.
-
-###ASYNC
-The scheduler MUST schedule the tasklet on a thread other than the scheduler's main thread.
-
-###WAIT
-The scheduler MUST not exit before a subsequent directive for the tasklet is received.
-
-###DONE
-The scheduler MUST remove all references to the tasklet from the scheduler.
 
 
