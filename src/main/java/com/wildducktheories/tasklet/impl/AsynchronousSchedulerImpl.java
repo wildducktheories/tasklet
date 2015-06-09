@@ -75,6 +75,24 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 
 			if (next != null) {
 				directive = next.task();
+				switch (directive) {
+				case DONE:
+					synchronized (this) {
+						if (sync.size() == 0) {
+							directives.remove(t);
+							return this;
+						}
+					}
+					next = null;
+					break;
+				case SYNC:
+					continue;
+				case WAIT:
+				case ASYNC:
+				default:
+					next = null;
+					continue;
+				}
 			}
 
 		} while (next != null);
