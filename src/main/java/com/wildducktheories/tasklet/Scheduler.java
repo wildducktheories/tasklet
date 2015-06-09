@@ -30,7 +30,13 @@ public interface Scheduler
 {
 	/**
 	 * Enqueues a {@link Tasklet} with the specified {@link Directive}.
-	 *
+	 * <p>
+	 * If the current thread is the {@link Scheduler}'s synchronous thread and there are
+	 * synchronous {@link Tasklet} instances pending execution, these will be executed before the
+	 * <code>schedule()</code> method returns. As a result, in these cases, the caller should
+	 * ensure that the invariant associated with the synchronous thread's state is re-established
+	 * prior to calling the <code>schedule()</code> method.
+	 * <p>
 	 * @param t The {@link Tasklet} to be scheduled with the scheduler.
 	 * @param directive The scheduling directive.
 	 * <p>

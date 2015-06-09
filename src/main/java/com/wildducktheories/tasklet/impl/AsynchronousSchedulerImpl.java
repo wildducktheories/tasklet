@@ -63,7 +63,25 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 	@Override
 	public Scheduler schedule(final Tasklet t, Directive directive) {
 
+		Tasklet next;
+
+		do {
+			next = null;
+			synchronized (this) {
+				if (directive == Directive.SYNC && sync.size() == 0 && main == Thread.currentThread()) {
+					next = t;
+				}
+			}
+
+			if (next != null) {
+				directive = next.task();
+			}
+
+		} while (next != null);
+
 		synchronized (this) {
+
+
 			directives.put(t, directive);
 			sync.remove(t);
 			switch (directive) {
@@ -91,6 +109,29 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 			}
 			this.notifyAll();
 		}
+
+		// if we are running on the synchronous thread, then aggressively
+		// dequeue and execute any pending synchronous tasklets.
+
+		do {
+			next = null;
+
+			synchronized (this) {
+				if (sync.size() > 0 && main == Thread.currentThread()) {
+					next = dequeue();
+				}
+			}
+
+			if (next != null) {
+				try {
+					final Directive d = next.task();
+					schedule(next, d);
+				} catch (RuntimeException e) {
+					schedule(next, Directive.DONE);
+				}
+			}
+		} while (next != null);
+
 		return this;
 	}
 
@@ -155,27 +196,7 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 										}
 									}
 								} else {
-									final Iterator<Tasklet> iter = sync.iterator();
-									next = iter.next();
-									iter.remove();
-									Directive d = directives.remove(next);
-									if (d == null) {
-										d = Directive.DONE;
-									}
-									switch (d) {
-									case SYNC:
-										// expected case
-										break;
-									case WAIT:
-										// re-enqueue a dequeued tasklet.
-										directives.put(next, d);
-										// a dequeued tasklet remains dequeued.
-										next = null;
-										break;
-									default:
-										next = null;
-										break;
-									}
+									next = dequeue();
 								}
 							}
 
@@ -195,6 +216,7 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 						}
 					}
 				}
+
 			});
 
 			synchronized (this) {
@@ -236,5 +258,33 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 		return this;
 	}
 
+	/**
+	 * @return Return the next synchronous tasklet.
+	 */
+	private Tasklet dequeue() {
+		Tasklet next;
+		final Iterator<Tasklet> iter = sync.iterator();
+		next = iter.next();
+		iter.remove();
+		Directive d = directives.remove(next);
+		if (d == null) {
+			d = Directive.DONE;
+		}
+		switch (d) {
+		case SYNC:
+			// expected case
+			break;
+		case WAIT:
+			// re-enqueue a dequeued tasklet.
+			directives.put(next, d);
+			// a dequeued tasklet remains dequeued.
+			next = null;
+			break;
+		default:
+			next = null;
+			break;
+		}
+		return next;
+	}
 
 }
