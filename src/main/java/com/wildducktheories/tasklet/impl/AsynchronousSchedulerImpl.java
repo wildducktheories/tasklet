@@ -65,37 +65,47 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 
 		Tasklet next;
 
-		do {
-			next = null;
-			synchronized (this) {
-				if (directive == Directive.SYNC && sync.size() == 0 && main == Thread.currentThread()) {
-					next = t;
-				}
-			}
+		if (directive == Directive.SYNC) {
 
-			if (next != null) {
-				directive = next.task();
-				switch (directive) {
-				case DONE:
-					synchronized (this) {
-						if (sync.size() == 0) {
-							directives.remove(t);
-							return this;
-						}
+			// optimized path for scheduling a SYNC tasklet on the synchronous thread where there
+			// are no other SYNC tasklets already queued.
+
+			// if we get to DONE, then we return directly, otherwise we take the slower path to
+			// deal with other cases.
+
+			do {
+				next = null;
+				synchronized (this) {
+					if (sync.size() == 0 && main == Thread.currentThread()) {
+						next = t;
 					}
-					next = null;
-					break;
-				case SYNC:
-					continue;
-				case WAIT:
-				case ASYNC:
-				default:
-					next = null;
-					continue;
 				}
-			}
 
-		} while (next != null);
+				if (next != null) {
+					directive = next.task();
+					switch (directive) {
+					case DONE:
+						synchronized (this) {
+							if (sync.size() == 0) {
+								directives.remove(t);
+								notifyAll();
+								return this;
+							}
+						}
+						next = null;
+						break;
+					case SYNC:
+						continue;
+					case WAIT:
+					case ASYNC:
+					default:
+						next = null;
+						continue;
+					}
+				}
+
+			} while (next != null);
+		}
 
 		synchronized (this) {
 
