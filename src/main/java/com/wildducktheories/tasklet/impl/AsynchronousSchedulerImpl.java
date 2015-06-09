@@ -81,13 +81,11 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 
 		synchronized (this) {
 
-
 			directives.put(t, directive);
 			sync.remove(t);
 			switch (directive) {
 			case SYNC:
 				sync.add(t);
-				conditionallyStartSynchronousThread();
 				break;
 			case WAIT:
 				break;
@@ -117,8 +115,12 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 			next = null;
 
 			synchronized (this) {
-				if (sync.size() > 0 && main == Thread.currentThread()) {
-					next = dequeue();
+				if (sync.size() > 0) {
+					if (main == Thread.currentThread()) {
+						next = dequeue();
+					} else if (main == null) {
+						conditionallyStartSynchronousThread();
+					}
 				}
 			}
 
