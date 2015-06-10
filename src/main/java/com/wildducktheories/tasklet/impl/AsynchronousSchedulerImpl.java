@@ -89,6 +89,10 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 	{
 		synchronized (this) {
 			if (auto) {
+				// We automatically execute the synchronous scheduling loop
+				// for synchronous tasklets as part of the schedule()
+				// call on this thread even if the scheduling loop itself
+				// is not running
 
 				if (this.main == null) {
 					this.main = Thread.currentThread();
@@ -96,6 +100,9 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 
 				runLevel &= 1;
 			} else {
+				// Otherwise, SYNC tasks are executed only if run()
+				// is active on the synchronous thread.
+
 				runLevel ^= 1;
 				if (runLevel == 0) {
 					main = null;
@@ -112,10 +119,12 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 
 		if (directive == Directive.SYNC) {
 
-			// optimized path for scheduling a SYNC tasklet on the synchronous thread where there
+			// Optimized path for scheduling a SYNC tasklet
+			// on the synchronous thread where there
 			// are no other SYNC tasklets already queued.
 
-			// if we get to DONE, then we return directly, otherwise we take the slower path to
+			// If we get to DONE, then we return directly,
+			// otherwise we take the slower path to
 			// deal with other cases.
 
 			do {
@@ -153,7 +162,8 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 		}
 
 		next = t;
-		// if we are running on the synchronous thread, then aggressively
+
+		// If we are running on the synchronous thread, then aggressively
 		// dequeue and execute any pending synchronous tasklets.
 
 		while (next != null) {
@@ -174,6 +184,8 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 				try {
 					directive = next.task();
 				} catch (RuntimeException e) {
+					// TODO: allow scheduler to specify exception
+					// handling policy for this case.
 					e.printStackTrace(System.err);
 					directive = Directive.DONE;
 				}
@@ -184,8 +196,19 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 	}
 
 	/**
-	 * Perform the core scheduling actions.
+	 * Perform the core scheduling actions for one tasklet and one directive.
 	 *
+	 * <dl>
+	 * <dt>SYNC</dt>
+	 * <dd>put t, SYNC into directives; t put into sync</dd>
+	 * <dt>ASYNC</dt>
+	 * <dd>put t, WAIT into directives; start async thread for t; remove t from sync.</dd>
+	 * <dt>WAIT</dt>
+	 * <dd>put t, WAIT into directives; remove t from sync.</dd>
+	 * <dt>DONE</dt>
+	 * <dd>remove t from directives and sync.</dd>
+	 * </dl>
+ 	 *
 	 * @param t The tasklet.
 	 * @param directive
 	 */
@@ -232,8 +255,8 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 	}
 
 	/**
-	 * Runs the scheduler until there are no more {@link Tasklet} waiting to be
-	 * scheduled.
+	 * Runs the scheduler until there are no more {@link Tasklet} instances
+	 * waiting to be scheduled.
 	 */
 	@Override
 	public void run()
