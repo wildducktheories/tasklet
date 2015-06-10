@@ -303,7 +303,7 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 	}
 
 	/**
-	 * @return Return the next synchronous tasklet.
+	 * @return Answer the next synchronous Tasklet or null if there is none.
 	 */
 	private Tasklet dequeue() {
 		Tasklet next;
