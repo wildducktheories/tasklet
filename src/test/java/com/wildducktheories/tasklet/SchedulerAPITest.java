@@ -37,7 +37,7 @@ public class SchedulerAPITest {
 				async.wait();
 			}
 		}
-		Assert.assertNotSame(current, async[0]);
+		Assert.assertSame(current, async[0]);
 		Assert.assertNotNull(async[0]);
 	}
 
@@ -54,12 +54,12 @@ public class SchedulerAPITest {
 				return Directive.DONE;
 			}
 		};
-		SchedulerAPI.with(scheduler, new Tasklet() {
+		scheduler.schedule(new Tasklet() {
 			public Directive task() {
 				scheduler.schedule(tasklet, Directive.ASYNC);
 				return Directive.DONE;
 			}
-		});
+		}, Directive.SYNC);
 		scheduler.run();
 		Assert.assertNotSame(current, async[0]);
 		Assert.assertNotNull(async[0]);
@@ -90,8 +90,8 @@ public class SchedulerAPITest {
 		final boolean[] done = new boolean[] { false };
 
 		SchedulerAPI
-	    	.with(
-		        SchedulerAPI.newScheduler(),
+	           .newScheduler()
+		       .schedule(
 		        new Tasklet() {
 		            int state = 0;
 		            public Directive task() {
@@ -112,8 +112,8 @@ public class SchedulerAPITest {
 		                    return Directive.DONE;
 		                }
 		            }
-		        }
-	    	).run();
+		        }, Directive.SYNC)
+		        .run();
 		Assert.assertTrue(done[0]);
 	}
 }

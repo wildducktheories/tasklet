@@ -11,12 +11,20 @@ import com.wildducktheories.tasklet.Directive;
 import com.wildducktheories.tasklet.Rescheduler;
 import com.wildducktheories.tasklet.Scheduler;
 import com.wildducktheories.tasklet.SchedulerAPI;
+import com.wildducktheories.tasklet.SchedulerNotRunningException;
 import com.wildducktheories.tasklet.Tasklet;
 
 /**
  * Provides an implementation of the {@link Scheduler} interface that uses an
  * {@link ExecutorService} to execute the asynchronous phases of {@link Tasklet} instances.
- *
+ * <p>
+ * An implementation assumption is that most tasklets are scheduled for synchronous execution by the
+ * synchronous thread itself with the occasional need to schedule asynchronous tasklets that
+ * then reschedule themselves as synchronous tasklets.
+ * <p>
+ * We don't require that a scheduler runs until we absolutely need it - that is, when we first
+ * attempt to schedule an asynchronous {@link Tasklet}.
+ * </p>
  * @author jonseymour
  */
 public class AsynchronousSchedulerImpl implements Scheduler {
@@ -42,9 +50,15 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 	private Thread main;
 
 	/**
-	 * True if the enqueuing thread immediately executes the queued.
+	 * This value is 2*r+auto, where r is the number of active calls
+	 * to run on the synchronous thread and auto is 1 if setAuto(boolean)
+	 * was last called with true.
+     *
+     * 0  => run not active, run() must be called for SYNC tasklet execution
+     * 1  => run not active, but SYNC tasklets will be executed by calls to schedule
+     * 2+ => run active, SYNC tasklets executed by schedule calls and scheduler loop
 	 */
-	private boolean auto;
+	private int runLevel;
 
 	/**
 	 * Default constructor uses a cached thread pool.
@@ -73,11 +87,23 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 	public synchronized AsynchronousSchedulerImpl setAuto(boolean auto)
 	{
 		synchronized (this) {
-			this.auto = auto;
+			if (auto) {
+
+				if (this.main == null) {
+					this.main = Thread.currentThread();
+				}
+
+				runLevel &= 1;
+			} else {
+				runLevel ^= 1;
+				if (runLevel == 0) {
+					main = null;
+				}
+			}
 		}
 		return this;
-	}	
-	
+	}
+
 	@Override
 	public Scheduler schedule(final Tasklet t, Directive directive) {
 
@@ -139,8 +165,6 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 				if (sync.size() > 0) {
 					if (main == Thread.currentThread()) {
 						next = dequeue();
-					} else if (main == null) {
-						conditionallyStartSynchronousThread();
 					}
 				}
 			}
@@ -160,11 +184,13 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 
 	/**
 	 * Perform the core scheduling actions.
-	 * 
+	 *
 	 * @param t The tasklet.
 	 * @param directive
 	 */
-	private void scheduleCore(final Tasklet t, Directive directive) {
+	private void scheduleCore(final Tasklet t, Directive directive)
+		throws SchedulerNotRunningException
+	{
 
 		synchronized (this) {
 
@@ -179,6 +205,12 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 				directives.put(t, directive);
 				break;
 			case ASYNC:
+				if (runLevel < 2) {
+					// To avoid this exception, the run method
+					// (and hence a scheduling loop) must be
+					// active on one thread.
+					throw new SchedulerNotRunningException();
+				}
 				directives.put(t, Directive.WAIT);
 				executor.submit(new Runnable() {
 					@Override
@@ -198,31 +230,6 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 		}
 	}
 
-	private void conditionallyStartSynchronousThread() {
-		if (main == null && auto) {
-			// if there is no synchronous thread, then start one
-			schedule(new Tasklet() {
-
-				@Override
-				public Directive task() {
-					boolean run = false;
-					synchronized (this) {
-						if (main == null) {
-							main = Thread.currentThread();
-							directives.remove(this);
-							run = true;
-						}
-					}
-					if (run) {
-						run();
-					}
-					return Directive.DONE;
-				}
-
-			}, Directive.ASYNC);
-		}
-	}
-
 	/**
 	 * Runs the scheduler until there are no more {@link Tasklet} waiting to be
 	 * scheduled.
@@ -239,6 +246,7 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 							return Directive.DONE;
 						}
 						main = Thread.currentThread();
+						runLevel += 2;
 					}
 
 					try {
@@ -274,7 +282,10 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 
 					} finally {
 						synchronized (this) {
-							main = null;
+							runLevel -= 2;
+							if (runLevel == 0) {
+								main = null;
+							}
 							this.notifyAll();
 						}
 					}
