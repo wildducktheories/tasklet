@@ -107,6 +107,38 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 			} while (next != null);
 		}
 
+		scheduleCore(t, directive);
+
+		// if we are running on the synchronous thread, then aggressively
+		// dequeue and execute any pending synchronous tasklets.
+
+		do {
+			next = null;
+
+			synchronized (this) {
+				if (sync.size() > 0) {
+					if (main == Thread.currentThread()) {
+						next = dequeue();
+					} else if (main == null) {
+						conditionallyStartSynchronousThread();
+					}
+				}
+			}
+
+			if (next != null) {
+				try {
+					final Directive d = next.task();
+					scheduleCore(next, d);
+				} catch (RuntimeException e) {
+					scheduleCore(next, Directive.DONE);
+				}
+			}
+		} while (next != null);
+
+		return this;
+	}
+
+	private void scheduleCore(final Tasklet t, Directive directive) {
 		synchronized (this) {
 
 			directives.put(t, directive);
@@ -135,34 +167,6 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 			}
 			this.notifyAll();
 		}
-
-		// if we are running on the synchronous thread, then aggressively
-		// dequeue and execute any pending synchronous tasklets.
-
-		do {
-			next = null;
-
-			synchronized (this) {
-				if (sync.size() > 0) {
-					if (main == Thread.currentThread()) {
-						next = dequeue();
-					} else if (main == null) {
-						conditionallyStartSynchronousThread();
-					}
-				}
-			}
-
-			if (next != null) {
-				try {
-					final Directive d = next.task();
-					schedule(next, d);
-				} catch (RuntimeException e) {
-					schedule(next, Directive.DONE);
-				}
-			}
-		} while (next != null);
-
-		return this;
 	}
 
 	private void conditionallyStartSynchronousThread() {
