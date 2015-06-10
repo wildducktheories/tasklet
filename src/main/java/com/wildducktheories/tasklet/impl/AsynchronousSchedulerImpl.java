@@ -60,6 +60,24 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 		executor = service;
 	}
 
+	/**
+	 * Sets a variable which determines if a synchronous thread will be automatically started by the scheduler when
+	 * no such thread already exists and there are synchronously scheduled {@link Tasklet} instances pending completion.
+	 * <p>
+	 * @param auto True if a synchronous thread is automatically started after the first {@link Tasklet} is scheduled
+	 * with a directive of {@link Directive#SYNC}. If this method is not called or if it is called with a value of false, the
+	 * consumer of this {@link Scheduler} must arrange for {@link Scheduler#run()} to be called at some later time in order
+	 * to guarantee that all synchronously scheduled {@link Tasklet} instances have been executed.
+	 * @return The receiver.
+	 */
+	public synchronized AsynchronousSchedulerImpl setAuto(boolean auto)
+	{
+		synchronized (this) {
+			this.auto = auto;
+		}
+		return this;
+	}	
+	
 	@Override
 	public Scheduler schedule(final Tasklet t, Directive directive) {
 
@@ -271,25 +289,6 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 	public Rescheduler suspend(final Tasklet tasklet) {
 		schedule(tasklet, Directive.WAIT);
 		return new ReschedulerImpl(this, tasklet);
-	}
-
-	/**
-	 * Sets a variable which determines if a synchronous thread will be automatically started by the scheduler when
-	 * no such thread already exists and there are synchronously scheduled {@link Tasklet} instances pending completion.
-	 * <p>
-	 * @param auto True if a synchronous thread is automatically started after the first {@link Tasklet} is scheduled
-	 * with a directive of {@link Directive#SYNC}. If this method is not called or if it is called with a value of false, the
-	 * consumer of this {@link Scheduler} must arrange for {@link Scheduler#run()} to be called at some later time in order
-	 * to guarantee that all synchronously scheduled {@link Tasklet} instances have been executed.
-	 * @return The receiver.
-	 */
-	public synchronized AsynchronousSchedulerImpl setAuto(boolean auto)
-	{
-		synchronized (this) {
-			this.auto = auto;
-			conditionallyStartSynchronousThread();
-		}
-		return this;
 	}
 
 	/**
