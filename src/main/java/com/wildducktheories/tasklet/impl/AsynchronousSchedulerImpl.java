@@ -4,6 +4,7 @@ import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -42,7 +43,7 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 	/**
 	 * The list of {@link Tasklet} instances to execute synchronously.
 	 */
-	private LinkedHashSet<Tasklet> sync = new LinkedHashSet<Tasklet>();
+	private Set<Tasklet> sync = new LinkedHashSet<Tasklet>();
 
 	/**
 	 * The scheduler {@link Thread}.
