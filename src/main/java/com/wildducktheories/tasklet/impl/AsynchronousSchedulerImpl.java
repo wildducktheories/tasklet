@@ -125,12 +125,14 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 			} while (next != null);
 		}
 
-		scheduleCore(t, directive);
-
+		next = t;
 		// if we are running on the synchronous thread, then aggressively
 		// dequeue and execute any pending synchronous tasklets.
 
-		do {
+		while (next != null) {
+
+			scheduleCore(next, directive);
+
 			next = null;
 
 			synchronized (this) {
@@ -145,13 +147,13 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 
 			if (next != null) {
 				try {
-					final Directive d = next.task();
-					scheduleCore(next, d);
+					directive = next.task();
 				} catch (RuntimeException e) {
-					scheduleCore(next, Directive.DONE);
+					e.printStackTrace(System.err);
+					directive = Directive.DONE;
 				}
 			}
-		} while (next != null);
+		}
 
 		return this;
 	}
