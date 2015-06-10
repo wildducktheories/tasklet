@@ -156,16 +156,25 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 		return this;
 	}
 
+	/**
+	 * Perform the core scheduling actions.
+	 * 
+	 * @param t The tasklet.
+	 * @param directive
+	 */
 	private void scheduleCore(final Tasklet t, Directive directive) {
+
 		synchronized (this) {
 
-			directives.put(t, directive);
 			sync.remove(t);
+
 			switch (directive) {
 			case SYNC:
+				directives.put(t, directive);
 				sync.add(t);
 				break;
 			case WAIT:
+				directives.put(t, directive);
 				break;
 			case ASYNC:
 				directives.put(t, Directive.WAIT);
