@@ -1,6 +1,6 @@
 package com.wildducktheories.tasklet;
 
-public interface API {
+public interface API extends com.wildducktheories.api.API {
 
 	/**
 	 * @return Answer the current scheduler associated with the thread. Always non-null.

@@ -2,6 +2,8 @@ package com.wildducktheories.tasklet;
 
 import java.util.concurrent.Callable;
 
+import com.wildducktheories.api.APIManager;
+import com.wildducktheories.api.impl.AbstractAPIManagerImpl;
 import com.wildducktheories.tasklet.impl.APIImpl;
 
 
@@ -11,17 +13,19 @@ import com.wildducktheories.tasklet.impl.APIImpl;
  * @author jonseymour
  */
 public class SchedulerAPI {
+
 	/**
-	 * An per thread override for the thread's current scheduler.
+	 * Delegate used for all static methods.
 	 */
-	private final static ThreadLocal<API> perThread = new ThreadLocal<API>();
+	private static final APIManager<API> manager = new AbstractAPIManagerImpl<API>() {
+		@Override
+		protected API newAPI() {
+			return new APIImpl();
+		}
+	};
 
 	public static API get() {
-		API api = perThread.get();
-		if (api == null) {
-			api = new APIImpl();
-		}
-		return api;
+		return manager.get();
 	}
 	
 	/**
@@ -31,17 +35,7 @@ public class SchedulerAPI {
 	 * @param run The specified {@link Runnable}
 	 */
 	public static void with(final API api, final Runnable runnable) {
-		final API saved = perThread.get();
-		try {
-			perThread.set(api);
-			runnable.run();
-		} finally {
-			if (saved == null) {
-				perThread.remove();
-			} else {
-				perThread.set(saved);
-			}
-		}
+		manager.with(api, runnable);
 	}
 	
 	/**
@@ -55,24 +49,13 @@ public class SchedulerAPI {
 	public static <P> P with(final API api, final Callable<P> callable) 
 		throws Exception
 	{
-		final API saved = perThread.get();
-		try {
-			perThread.set(api);
-			return callable.call();
-		} finally {
-			if (saved == null) {
-				perThread.remove();
-			} else {
-				perThread.set(saved);
-			}
-		}
+		return manager.with(api, callable);
 	}
 	
 	/**
 	 * Release all thread local resources.
 	 */
 	public static void reset() {
-		get().reset();
-		perThread.remove();
+		manager.reset();
 	}
 }
