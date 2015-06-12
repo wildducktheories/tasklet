@@ -19,7 +19,7 @@ public class SchedulerAPITest {
 	@Test
 	public void testDefaultSchedulerIsAutomatic() throws InterruptedException {
 
-		final Scheduler scheduler = SchedulerAPI.getScheduler();
+		final Scheduler scheduler = SchedulerAPI.get().getScheduler();
 		final Thread current = Thread.currentThread();
 		final Thread[] async = new Thread[]{null};
 		scheduler.schedule(new Tasklet() {
@@ -43,14 +43,14 @@ public class SchedulerAPITest {
 
 	@Test
 	public void testAsyncSchedulerIsAsynchronous() {
-		final Scheduler scheduler = SchedulerAPI.newScheduler();
+		final Scheduler scheduler = SchedulerAPI.get().newScheduler();
 		final Scheduler[] asyncScheduler = new Scheduler[]{null};
 		final Thread current = Thread.currentThread();
 		final Thread[] async = new Thread[]{null};
 		final Tasklet tasklet = new Tasklet() {
 			public Directive task() {
 				async[0] = Thread.currentThread();
-				asyncScheduler[0] = SchedulerAPI.getScheduler();
+				asyncScheduler[0] = SchedulerAPI.get().getScheduler();
 				return Directive.DONE;
 			}
 		};
@@ -68,17 +68,17 @@ public class SchedulerAPITest {
 
 	@Test
 	public void testEmptySchedulerRunsToCompletion() {
-		SchedulerAPI.newScheduler().run();
+		SchedulerAPI.get().newScheduler().run();
 	}
 
 	@Test
 	public void testWithScheduler() {
-		final Scheduler scheduler = SchedulerAPI.newScheduler();
+		final Scheduler scheduler = SchedulerAPI.get().newScheduler();
 		final Scheduler[] results = new Scheduler[]{null};
-		SchedulerAPI.with(scheduler, new Tasklet() {
+		SchedulerAPI.get().with(scheduler, new Tasklet() {
 			@Override
 			public Directive task() {
-				results[0] = SchedulerAPI.getScheduler();
+				results[0] = SchedulerAPI.get().getScheduler();
 				return Directive.DONE;
 			}
 		});
@@ -90,6 +90,7 @@ public class SchedulerAPITest {
 		final boolean[] done = new boolean[] { false };
 
 		SchedulerAPI
+			   .get()
 	           .newScheduler()
 		       .schedule(
 		        new Tasklet() {

@@ -8,10 +8,10 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.wildducktheories.tasklet.API;
 import com.wildducktheories.tasklet.Directive;
 import com.wildducktheories.tasklet.Rescheduler;
 import com.wildducktheories.tasklet.Scheduler;
-import com.wildducktheories.tasklet.SchedulerAPI;
 import com.wildducktheories.tasklet.SchedulerNotRunningException;
 import com.wildducktheories.tasklet.Tasklet;
 
@@ -35,6 +35,8 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 	 */
 	private final Map<Tasklet, Directive> directives = new IdentityHashMap<Tasklet, Directive>();
 
+	private final API api;
+	
 	/**
 	 * The service used to execute tasks remotely.
 	 */
@@ -64,14 +66,15 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 	/**
 	 * Default constructor uses a cached thread pool.
 	 */
-	public AsynchronousSchedulerImpl() {
-		executor = Executors.newCachedThreadPool();
+	public AsynchronousSchedulerImpl(API api) {
+		this(api,Executors.newCachedThreadPool());
 	}
 
 	/**
 	 * @param service An executor service.
 	 */
-	public AsynchronousSchedulerImpl(ExecutorService service) {
+	public AsynchronousSchedulerImpl(API api, ExecutorService service) {
+		this.api = api;
 		executor = service;
 	}
 
@@ -239,7 +242,7 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 				executor.submit(new Runnable() {
 					@Override
 					public void run() {
-						SchedulerAPI.with(AsynchronousSchedulerImpl.this, t);
+						api.with(AsynchronousSchedulerImpl.this, t);
 					}
 				});
 				break;
@@ -263,7 +266,7 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 	{
 		boolean done = false;
 		do {
-			SchedulerAPI.with(this, new Tasklet() {
+			api.with(this, new Tasklet() {
 				public Directive task() {
 					synchronized (this) {
 						while ((main != null && main != Thread.currentThread())) {

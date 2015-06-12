@@ -14,6 +14,7 @@ As a motivating example, consider a 3-state, state machine in which a blocking c
 call preparation and post-processing are both performed on the scheduler's synchronous thread.
 
 	SchedulerAPI
+		.get()
 		.newScheduler()
 		.schedule(
 			new Tasklet() {
@@ -71,24 +72,26 @@ directly in this way. Rather, it is expected that application programmers would 
 promises and actors and that the implementations of those abstractions might usefully be implemented by making
 use of the tasklet and scheduler abstractions.
 
-##SchedulerAPI
+##API
 
-The SchedulerAPI class provides 4 static methods that manage the association between the current thread
-and its Scheduler instance. These calls are:
+The API interface provides 4 static methods that manage the association between the current thread and its Scheduler instance. These calls are:
 
 * Scheduler newScheduler()
 * Scheduler with(Scheduler, Directive)
 * Scheduler getScheduler()
 * void reset()
 
+To obtain a reference to the current thread's Scheduler API instance, use the call <code>SchedulerAPI.get()</code>.
+
 ### method: Scheduler newScheduler()
 Creates a new Scheduler instance.
 
 The caller of this method is expected to schedule one or more tasklets with <code>Scheduler.schedule(Tasklet, Directive)</code> or to call
-<code>SchedulerAPI.with(Scheduler, Tasklet)</code> and then call the scheduler's <code>run()</code> method.
+<code>SchedulerAPI.get().with(Scheduler, Tasklet)</code> and then call the scheduler's <code>run()</code> method.
 For example:
 
 	SchedulerAPI
+		.get()
 		.newScheduler()
 		.schedule(new Tasklet() { .. }, Directive.SYNC)
 		.run()
@@ -96,8 +99,9 @@ For example:
 Or:
 
 	SchedulerAPI
+		.get()
 		.with(
-			SchedulerAPI.newScheduler(),
+			SchedulerAPI.get().newScheduler(),
 			new Tasklet() { .. }
 		 )
 		.run()
@@ -119,21 +123,21 @@ Answers the Scheduler instance currently associated with the current thread or c
 
 If a new instance is created, execution of synchronous tasklets scheduled by the current thread will occur before the associated schedule() call returns. Normally, execution of synchronously scheduled tasklets does not commence unless the scheduler's run() metbod is active.
 
-As a general rule, <code>SchedulerAPI.getScheduler()</code> should only be called on threads with
-active <code>Scheduler.schedule(Tasklet, Directive)</code> or <code>SchedulerAPI.with(Scheduler, Tasklet)</code>
+As a general rule, <code>SchedulerAPI.get().getScheduler()</code> should only be called on threads with
+active <code>Scheduler.schedule(Tasklet, Directive)</code> or <code>SchedulerAPI.get().with(Scheduler, Tasklet)</code>
 calls. Refer to the description of the <code>SchedulerAPI.reset()</code> method for more information about what to do in cases
-where possibly unguarded calls to <code>SchedulerAPI.getScheduler()</code> cannot be avoided.
+where possibly unguarded calls to <code>SchedulerAPI.get().getScheduler()</code> cannot be avoided.
 
 In general, it is not safe to call <code>Scheduler.run()</code> on a Scheduler
-returned by <code>SchedulerAPI.getScheduler()</code> since this call may have been made by another thread and in some circumstances this may prevent both calls terminating.
+returned by <code>SchedulerAPI.get().getScheduler()</code> since this call may have been made by another thread and in some circumstances this may prevent both calls terminating.
 
 ### method: void reset()
-Removes any ThreadLocal associated with an unguarded use of the <code>SchedulerAPI.getScheduler()</code> call.
+Removes any ThreadLocal associated with an unguarded use of the <code>SchedulerAPI.get().getScheduler()</code> call.
 
-In cases where <code>SchedulerAPI.getScheduler()</code> calls that are not provably guarded by active
-calls to <code>Scheduler.schedule(Tasklet, Directive)</code> or <code>SchedulerAPI.with(Scheduler, Tasklet)</code>,
+In cases where <code>SchedulerAPI.get().getScheduler()</code> calls that are not provably guarded by active
+calls to <code>Scheduler.schedule(Tasklet, Directive)</code> or <code>SchedulerAPI.get().with(Scheduler, Tasklet)</code>,
 the application must arrange to have <code>SchedulerAPI.reset()</code> called on each thread that may have called
-<code>SchedulerAPI.getScheduler()</code> in an unguarded manner before a reference to each such a thread is lost. This call
+<code>SchedulerAPI.get().getScheduler()</code> in an unguarded manner before a reference to each such a thread is lost. This call
 is required in order to guarantee the release of a <code>ThreadLocal</code> that might
 otherwise pin the SchedulerAPI's class loader.
 
@@ -196,7 +200,8 @@ Rescheduler object that can be later used to resume the suspended tasklet. For e
 
 			// ...
 
-			final Rescheduler rescheduler = SchedulerAPI
+			final Rescheduler rescheduler =
+				.get()
 				.getScheduler()
 				.suspend(this);
 
@@ -245,6 +250,20 @@ each of which corresponds to one of possible value of the Directive type.
 * Any tasklet scheduled with WAIT, MUST be eventually resumed (or rescheduled) with some other directive by some thread.
 
 #REVISIONS
+
+##1.1.0
+
+In previous releases, the SchedulerAPI class provided static methods
+to create, get and set the current thread's Scheduler instance. A limitation with the initial implementation was that
+there was no way to alter the implementation of the Scheduler selected by
+SchedulerAPI.newScheduler() or the implementation of the ExecutorService used
+by each scheduler.
+
+In the current release, the API object itself can be configured on a per-thread
+and per-scheduler basis, thereby allowing these details to be varied as required.
+
+This is a breaking API change, but since no-one is actually using the API
+in production right now, we can live with that :-)
 
 ##1.0.1
 
