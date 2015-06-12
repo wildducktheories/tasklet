@@ -19,10 +19,17 @@ public class SchedulerAPI {
 	 */
 	private static final APIManager<API> manager = new AbstractAPIManagerImpl<API>() {
 		@Override
-		protected API newAPI() {
+		public API newAPI() {
 			return new APIImpl();
 		}
 	};
+	
+	/**
+	 * @return A new instance of the Scheduler API.
+	 */
+	public static API newAPI() {
+		return manager.newAPI();
+	}
 
 	public static API get() {
 		return manager.get();
