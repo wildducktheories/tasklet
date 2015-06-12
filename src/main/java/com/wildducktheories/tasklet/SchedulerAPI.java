@@ -1,5 +1,7 @@
 package com.wildducktheories.tasklet;
 
+import java.util.concurrent.Callable;
+
 import com.wildducktheories.tasklet.impl.APIImpl;
 
 
@@ -22,11 +24,17 @@ public class SchedulerAPI {
 		return api;
 	}
 	
-	public static Scheduler with(API api, Scheduler scheduler, Tasklet tasklet) {
+	/**
+	 * Run the specified {@link Runnable} with the specified {@link API} as the 
+	 * current {@link API} for the current thread.
+	 * @param api The specified {@link API}I
+	 * @param run The specified {@link Runnable}
+	 */
+	public static void with(final API api, final Runnable runnable) {
 		final API saved = perThread.get();
 		try {
 			perThread.set(api);
-			return api.with(scheduler, tasklet);
+			runnable.run();
 		} finally {
 			if (saved == null) {
 				perThread.remove();
@@ -36,6 +44,33 @@ public class SchedulerAPI {
 		}
 	}
 	
+	/**
+	 * Run the specified {@link Callable} with the specified {@link API} as the 
+	 * current {@link API} for the current thread. 
+	 * @param api The specified {@link API}I
+	 * @param run The specified {@link Runnable}
+	 * @return The result of the {@link Callable}
+	 * @throws Exception The exception thrown by the specified {@link Callable}, if any.
+	 */
+	public static <P> P with(final API api, final Callable<P> callable) 
+		throws Exception
+	{
+		final API saved = perThread.get();
+		try {
+			perThread.set(api);
+			return callable.call();
+		} finally {
+			if (saved == null) {
+				perThread.remove();
+			} else {
+				perThread.set(saved);
+			}
+		}
+	}
+	
+	/**
+	 * Release all thread local resources.
+	 */
 	public static void reset() {
 		get().reset();
 		perThread.remove();
