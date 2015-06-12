@@ -12,6 +12,7 @@ import com.wildducktheories.tasklet.API;
 import com.wildducktheories.tasklet.Directive;
 import com.wildducktheories.tasklet.Rescheduler;
 import com.wildducktheories.tasklet.Scheduler;
+import com.wildducktheories.tasklet.SchedulerAPI;
 import com.wildducktheories.tasklet.SchedulerNotRunningException;
 import com.wildducktheories.tasklet.Tasklet;
 
@@ -242,7 +243,12 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 				executor.submit(new Runnable() {
 					@Override
 					public void run() {
-						api.with(AsynchronousSchedulerImpl.this, t);
+						SchedulerAPI.with(api, new Runnable() {
+							@Override
+							public void run() {
+								api.with(AsynchronousSchedulerImpl.this, t);
+							}
+						});
 					}
 				});
 				break;
