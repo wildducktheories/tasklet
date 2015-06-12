@@ -12,7 +12,6 @@ import com.wildducktheories.tasklet.API;
 import com.wildducktheories.tasklet.Directive;
 import com.wildducktheories.tasklet.Rescheduler;
 import com.wildducktheories.tasklet.Scheduler;
-import com.wildducktheories.tasklet.SchedulerAPI;
 import com.wildducktheories.tasklet.SchedulerNotRunningException;
 import com.wildducktheories.tasklet.Tasklet;
 
@@ -37,7 +36,7 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 	private final Map<Tasklet, Directive> directives = new IdentityHashMap<Tasklet, Directive>();
 
 	private final API api;
-	
+
 	/**
 	 * The service used to execute tasks remotely.
 	 */
