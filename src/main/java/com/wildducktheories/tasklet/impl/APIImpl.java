@@ -1,7 +1,10 @@
 package com.wildducktheories.tasklet.impl;
 
+import java.util.concurrent.Callable;
+
 import com.wildducktheories.tasklet.API;
 import com.wildducktheories.tasklet.Scheduler;
+import com.wildducktheories.tasklet.SchedulerAPI;
 import com.wildducktheories.tasklet.Tasklet;
 
 public class APIImpl implements API {
@@ -42,20 +45,35 @@ public class APIImpl implements API {
 	}
 
 	@Override
-	public Scheduler with(Scheduler scheduler, Tasklet tasklet) {
-		final Scheduler saved = perThread.get();
+	public Scheduler with(final Scheduler scheduler, final Tasklet tasklet) {
 		try {
-			perThread.set(scheduler);
-			scheduler.schedule(tasklet, tasklet.task());
-			return scheduler;
-		} finally {
-			if (saved != null) {
-				perThread.set(saved);
-			} else {
-				perThread.remove();
-			}
+			return SchedulerAPI.with(this,
+				new Callable<Scheduler>() {
+
+					@Override
+					public Scheduler call() {
+						final Scheduler saved = perThread.get();
+						try {
+							perThread.set(scheduler);
+							scheduler.schedule(tasklet, tasklet.task());
+							return scheduler;
+						} finally {
+							if (saved != null) {
+								perThread.set(saved);
+							} else {
+								perThread.remove();
+							}
+						}
+					
+					}
+				
+			});
+		} catch (RuntimeException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new RuntimeException("unexpected exception", e);
 		}
-	
+		
 	}
 
 }

@@ -243,12 +243,7 @@ public class AsynchronousSchedulerImpl implements Scheduler {
 				executor.submit(new Runnable() {
 					@Override
 					public void run() {
-						SchedulerAPI.with(api, new Runnable() {
-							@Override
-							public void run() {
-								api.with(AsynchronousSchedulerImpl.this, t);
-							}
-						});
+						api.with(AsynchronousSchedulerImpl.this, t);
 					}
 				});
 				break;
