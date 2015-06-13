@@ -19,7 +19,7 @@ public class SchedulerAPI {
 	 */
 	private static final APIManager<API> manager = new AbstractAPIManagerImpl<API>() {
 		@Override
-		public API newAPI() {
+		public API create() {
 			return new APIImpl();
 		}
 	};
@@ -27,8 +27,8 @@ public class SchedulerAPI {
 	/**
 	 * @return A new instance of the Scheduler API.
 	 */
-	public static API newAPI() {
-		return manager.newAPI();
+	public static API create() {
+		return manager.create();
 	}
 
 	public static API get() {
