@@ -36,25 +36,26 @@ public class SchedulerAPI {
 	}
 	
 	/**
-	 * Run the specified {@link Runnable} with the specified {@link API} as the 
-	 * current {@link API} for the current thread.
-	 * @param api The specified {@link API}I
-	 * @param run The specified {@link Runnable}
+	 * Encapsulate the specified {@link Runnable} with one that will configure the
+	 * thread's current API to be the specified API, execute the specified {@link Runnable},
+	 * and then restore the thread's original API instance.
+	 * @param api The specified {@link API}
+	 * @param runnable The specified {@link Runnable}
+	 * @return The encapsulated {@link Runnable}
 	 */
-	public static void with(final API api, final Runnable runnable) {
-		manager.with(api, runnable);
+	public static Runnable with(final API api, final Runnable runnable) {
+		return manager.with(api, runnable);
 	}
 	
 	/**
-	 * Run the specified {@link Callable} with the specified {@link API} as the 
-	 * current {@link API} for the current thread. 
+	 * Encapsulate the specified {@link Callable} with one that will configure the
+	 * thread's current API to be the specified API, execute the specified {@link Callable},
+	 * and then restore the thread's original API instance.
 	 * @param api The specified {@link API}I
-	 * @param run The specified {@link Runnable}
-	 * @return The result of the {@link Callable}
-	 * @throws Exception The exception thrown by the specified {@link Callable}, if any.
+	 * @param callable The specified {@link Runnable}
+	 * @return The encapsulated {@link Callable}
 	 */
-	public static <P> P with(final API api, final Callable<P> callable) 
-		throws Exception
+	public static <P> Callable<P> with(final API api, final Callable<P> callable) 
 	{
 		return manager.with(api, callable);
 	}

@@ -84,7 +84,7 @@ public class APIImpl implements API {
 
 				}
 
-			});
+			}).call();
 		} catch (RuntimeException e) {
 			throw e;
 		} catch (Exception e) {
