@@ -8,7 +8,7 @@ import com.wildducktheories.tasklet.impl.APIImpl;
 
 
 /**
- * Provides methods that can construct, get and set the {@link Scheduler} instance associated with the current {@link Thread}.
+ * Provides methods that can construct, get and set the {@link API} instance associated with the current {@link Thread}.
  *
  * @author jonseymour
  */
@@ -25,12 +25,19 @@ public class SchedulerAPI {
 	};
 	
 	/**
+	 * Answer a new instance of the scheduler API.
 	 * @return A new instance of the Scheduler API.
 	 */
 	public static API create() {
 		return manager.create();
 	}
 
+	/**
+	 * Answer the current instance of the scheduler API. If there is no such instance, create a new
+	 * instance and initialise a ThreadLocal with a reference to this instance. The application
+	 * must ensure that <code>reset()</code> is called before losing a reference to the current Thread.
+	 * @return Answer an API instance. Never null.
+	 */
 	public static API get() {
 		return manager.get();
 	}
